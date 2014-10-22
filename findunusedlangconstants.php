@@ -1,4 +1,10 @@
 <?php
+/**
+ * A single file library to help find unused Joomla language constants
+ * @author Soren Beck Jensen <soren@notwebdesign.com>
+ * @copyright  Copyright (C) 2014 Jensen Technologies SL. All rights reserved.
+ * @license    GNU General Public License version 2 or later; see LICENSE
+ */
 define('_JEXEC', true);
 error_reporting(E_ALL);
 
