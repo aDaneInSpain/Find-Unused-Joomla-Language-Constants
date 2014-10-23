@@ -3,7 +3,7 @@
  * A single file library to help find unused Joomla language constants
  * @author Soren Beck Jensen <soren@notwebdesign.com>
  * @copyright  Copyright (C) 2014 Jensen Technologies SL. All rights reserved.
- * @license    GNU General Public License version 2 or later; see LICENSE
+ * @license    GNU General Public License version 2 or later
  */
 define('_JEXEC', true);
 error_reporting(E_ALL);
@@ -138,6 +138,7 @@ class Unusedconstants
                 $ignored_constant_patterns[] = '/.*_NO_ITEM_SELECTED/im';
                 $ignored_constant_patterns[] = '/.*_LAYOUT_DEFAULT/im';
                 $ignored_constant_patterns[] = '/.*_CONFIGURATION/im';
+                $ignored_constant_patterns[] = '/.*_1/im';
                 foreach ($ignored_constant_patterns as $ignored_constant_pattern) 
                 {
                     if (preg_match($ignored_constant_pattern, $constant)) 
