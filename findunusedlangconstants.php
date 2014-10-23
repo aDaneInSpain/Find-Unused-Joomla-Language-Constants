@@ -135,6 +135,8 @@ class Unusedconstants
                 $ignored_constant_patterns[] = '/.*_NO_ITEM_SELECTED/im';
                 $ignored_constant_patterns[] = '/.*_LAYOUT_DEFAULT/im';
                 $ignored_constant_patterns[] = '/.*_CONFIGURATION/im';
+                $ignored_constant_patterns[] = '/TPL_.*_POSITION_.*/im';
+                $ignored_constant_patterns[] = '/COM_MODULES_POSITION_.*/im';
                 foreach ($ignored_constant_patterns as $ignored_constant_pattern) 
                 {
                     if (preg_match($ignored_constant_pattern, $constant)) 
