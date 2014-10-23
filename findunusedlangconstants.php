@@ -129,16 +129,12 @@ class Unusedconstants
                 //We can not find them so just manually remove them
                 $ignored_constant_patterns = array();
                 $ignored_constant_patterns[] = '/.*_SAVE_SUCCESS/im';
-                $ignored_constant_patterns[] = '/.*_N_ITEMS_ARCHIVED.*/im';
-                $ignored_constant_patterns[] = '/.*_N_ITEMS_CHECKED_IN.*/im';
-                $ignored_constant_patterns[] = '/.*_N_ITEMS_DELETED.*/im';
-                $ignored_constant_patterns[] = '/.*_N_ITEMS_PUBLISHED.*/im';
-                $ignored_constant_patterns[] = '/.*_N_ITEMS_TRASHED.*/im';
-                $ignored_constant_patterns[] = '/.*_N_ITEMS_UNPUBLISHED.*/im';
+                $ignored_constant_patterns[] = '/.*_N_.*/im'; //A plural string with _N_ 
+                $ignored_constant_patterns[] = '/.*_\d/im'; //A plural string ending in a number
+                $ignored_constant_patterns[] = '/.*_MORE/im'; //A plural string
                 $ignored_constant_patterns[] = '/.*_NO_ITEM_SELECTED/im';
                 $ignored_constant_patterns[] = '/.*_LAYOUT_DEFAULT/im';
                 $ignored_constant_patterns[] = '/.*_CONFIGURATION/im';
-                $ignored_constant_patterns[] = '/.*_1/im';
                 foreach ($ignored_constant_patterns as $ignored_constant_pattern) 
                 {
                     if (preg_match($ignored_constant_pattern, $constant)) 
