@@ -31,16 +31,41 @@ require_once JPATH_BASE . '/libraries/joomla/language/language.php';
 $unusedconstants = new Unusedconstants;
 
 $scanfiles = filter_input(INPUT_POST, 'scanfiles', FILTER_SANITIZE_STRING, FILTER_REQUIRE_ARRAY);
-if (count($scanfiles) > 0) {
+
+if (count($scanfiles) > 0)
+{
     $unused = $unusedconstants->scanFiles($scanfiles);
     $unusedconstants->showUnusedConstants($unused);
-} else {
+}
+else
+{
     $unusedconstants->showFileSelectForm();
 }
 
 class Unusedconstants 
 {
-    
+    private $languages;
+
+    public function __construct()
+    {
+        $this->getInstalledLanguages();
+    }
+
+    private function getInstalledLanguages()
+    {
+        $this->languages = array();
+
+        $languages = JLanguageHelper::getKnownLanguages();
+
+        foreach ($languages as $lang)
+        {
+            $this->languages[] = (object) array(
+                'name' => $lang['name'],
+                'tag'  => $lang['tag']
+            );
+        }
+    }
+
     /**
      * Show a list of unused constants
      * @param array $unused a list of constants that are not in use
@@ -185,6 +210,18 @@ class Unusedconstants
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>        
         <?php
     }
+
+    private function getFiles()
+    {
+        $files = array();
+
+        foreach ($this->languages as $lang)
+        {
+            $files[$lang->tag] = JFolder::files(JPATH_BASE, $lang->tag . '.*\.ini', true, true);
+        }
+
+        return $files;
+    }
     
     
     public function showFileSelectForm($selected=array()) 
@@ -238,11 +275,8 @@ class Unusedconstants
                 </script>
             </head>
             <body>
-                <?php
-                //Find all language files
-                $files = JFolder::files(JPATH_BASE, 'en-GB.*\.ini', true, true);                
-                ?>
-                <?php if (count($files)): ?>
+                <?php $langFiles = $this->getFiles(); ?>
+                <?php if (count($langFiles)): ?>
                     <form action="<?php echo basename(__FILE__); ?>" method="post">
                         <div class="navbar navbar-inverse navbar-fixed-top">
                             <div class="container">
@@ -270,20 +304,48 @@ class Unusedconstants
                                 </div>
                             </div>                                        
 
-                            <div class="alert alert-danger hidden" id="warn-too-many">Warning! Selecting more than a few files can result in very long processing time and/or flat out timeouts and out of memory errors. Proceed with care!</div>
+                            <div class="alert alert-danger hidden" id="warn-too-many">
+                                Warning! Selecting more than a few files can result in very long processing time and/or flat out timeouts and out of memory errors. Proceed with care!
+                            </div>
+
                             <h4>Select the language file(s) to scan below</h4>
-                            <table class="table table-hover">
-                                <tbody>
-                                    <?php $i = 0; ?>
-                                    <?php foreach ($files as $file): ?>
-                                        <?php $i++; ?>
-                                        <tr><td>
-                                            <input type="checkbox" name="scanfiles[]" value="<?php echo urlencode($file); ?>" id="option<?php echo $i; ?>" /> 
-                                            <label for="option<?php echo $i; ?>"><?php echo $file;?></label>
-                                        </td></tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+
+                            <?php $i = 0; ?>
+                            <?php foreach ($langFiles as $lang => $files) : ?>
+
+                                <div class="panel-group" id="accordion<?php echo $lang; ?>" role="tablist" aria-multiselectable="true">
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading" role="tab" id="heading<?php echo $lang; ?>">
+                                            <h4 class="panel-title">
+                                                <a role="button" data-toggle="collapse" data-parent="#accordion<?php echo $lang; ?>" href="#collapse<?php echo $lang; ?>" aria-expanded="true" aria-controls="heading<?php echo $lang; ?>">
+                                                    Files for <?php echo $lang; ?>
+                                                </a>
+                                            </h4>
+                                        </div>
+                                        <div id="collapse<?php echo $lang; ?>" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="heading<?php echo $lang; ?>">
+                                            <div class="panel-body">
+
+                                                <table class="table table-hover">
+                                                    <tbody>
+                                                    <?php foreach ($files as $file) : ?>
+                                                        <?php $i++; ?>
+                                                        <tr>
+                                                            <td>
+                                                                <input type="checkbox" name="scanfiles[]" value="<?php echo urlencode($file); ?>" id="option<?php echo $i; ?>">
+                                                                <label for="option<?php echo $i; ?>"><?php echo $file;?></label>
+                                                            </td>
+                                                        </tr>
+                                                    <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            <?php endforeach; ?>
+
                         </div>
                     </form>
                 <?php else: ?>
