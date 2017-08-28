@@ -39,8 +39,15 @@ if ($task == 'remove')
 
     $unusedconstants->removeStringsFromFile($file);
 
-    $unused = $unusedconstants->scanFiles($scanfiles);
-    $unusedconstants->showUnusedConstants($unused);
+    ?>
+    <script>
+        window.onload = function () {
+            alert('<?php echo $file; ?> cleaned!');
+        }
+    </script>
+    <?php
+
+    $unusedconstants->showFileSelectForm();
 }
 elseif (count($scanfiles) > 0)
 {
@@ -120,24 +127,26 @@ class Unusedconstants
                         </div>
 
                         <?php foreach ($unused as $file => $constants) : ?>
-                            <div class="panel panel-warning">
+                            <?php $panelClass = (count($constants) > 0) ? 'warning' : 'success'; ?>
+                            <div class="panel panel-<?php echo $panelClass; ?>">
                                 <div class="panel-heading">
                                     <h3 class="panel-title">(<?php echo count($constants); ?> constants) <?php echo $file; ?></h3>
                                 </div>
                                 <div class="panel-body">
-                                    <form action="<?php echo basename(__FILE__); ?>" method="post">
-                                        <input type="hidden" name="file" value="<?php echo $file; ?>">
-                                        <input type="hidden" name="task" value="remove">
-
-                                        <ul>
-                                            <?php foreach ($constants as $constant => $text): ?>
-                                                <li><strong><?php echo $constant; ?></strong>: <small class="text-muted"><?php echo htmlentities($text); ?></small></li>
-                                            <?php endforeach; ?>
-                                        </ul>
-
-                                        <button type="submit" class="btn btn-danger">Remove all unused strings</button>
-
-                                    </form>
+                                    <?php if (count($constants) == 0) : ?>
+                                        All the const strings in this file are used!
+                                    <?php else: ?>
+                                        <form action="<?php echo basename(__FILE__); ?>" method="post">
+                                            <input type="hidden" name="file" value="<?php echo $file; ?>">
+                                            <input type="hidden" name="task" value="remove">
+                                            <ul>
+                                                <?php foreach ($constants as $constant => $text): ?>
+                                                    <li><strong><?php echo $constant; ?></strong>: <small class="text-muted"><?php echo htmlentities($text); ?></small></li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                            <button type="submit" class="btn btn-danger">Remove all unused strings</button>
+                                        </form>
+                                    <?php endif; ?>
                                 </div>                                
                             </div>
                         <?php endforeach; ?>
@@ -159,14 +168,10 @@ class Unusedconstants
 
         $fileContent = $this->parse($file);
 
-        echo 'initial len: ' . count($fileContent) . '<br>';
-
         foreach ($strToRemove as $str)
         {
             unset($fileContent[$str]);
         }
-
-        echo 'final len: ' . count($fileContent) . '<br>';
 
         $str = '';
 
@@ -176,8 +181,6 @@ class Unusedconstants
         }
 
         file_put_contents($file, $str);
-
-
     }
 
     /**
@@ -369,11 +372,11 @@ class Unusedconstants
                                         <div class="panel-heading" role="tab" id="heading<?php echo $lang; ?>">
                                             <h4 class="panel-title">
                                                 <a role="button" data-toggle="collapse" data-parent="#accordion<?php echo $lang; ?>" href="#collapse<?php echo $lang; ?>" aria-expanded="true" aria-controls="heading<?php echo $lang; ?>">
-                                                    Files for <?php echo $lang; ?>
+                                                    <strong><?php echo $lang; ?></strong> <?php echo count($files); ?> file(s)
                                                 </a>
                                             </h4>
                                         </div>
-                                        <div id="collapse<?php echo $lang; ?>" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="heading<?php echo $lang; ?>">
+                                        <div id="collapse<?php echo $lang; ?>" class="panel-collapse collapse" role="tabpanel" aria-labelledby="heading<?php echo $lang; ?>">
                                             <div class="panel-body">
 
                                                 <table class="table table-hover">
