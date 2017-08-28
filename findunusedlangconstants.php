@@ -177,7 +177,7 @@ class Unusedconstants
 
         foreach ($fileContent as $key => $line)
         {
-            $str .= $key . ' = "' . $line . '"\n';
+            $str .= $key . ' = "' . $line . '"' . "\n";
         }
 
         file_put_contents($file, $str);
