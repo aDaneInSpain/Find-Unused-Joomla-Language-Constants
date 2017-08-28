@@ -31,16 +31,58 @@ require_once JPATH_BASE . '/libraries/joomla/language/language.php';
 $unusedconstants = new Unusedconstants;
 
 $scanfiles = filter_input(INPUT_POST, 'scanfiles', FILTER_SANITIZE_STRING, FILTER_REQUIRE_ARRAY);
-if (count($scanfiles) > 0) {
+$task      = filter_input(INPUT_POST, 'task', FILTER_SANITIZE_STRING);
+
+if ($task == 'remove')
+{
+    $file = filter_input(INPUT_POST, 'file', FILTER_SANITIZE_STRING);
+
+    $unusedconstants->removeStringsFromFile($file);
+
+    ?>
+    <script>
+        window.onload = function () {
+            alert('<?php echo $file; ?> cleaned!');
+        }
+    </script>
+    <?php
+
+    $unusedconstants->showFileSelectForm();
+}
+elseif (count($scanfiles) > 0)
+{
     $unused = $unusedconstants->scanFiles($scanfiles);
     $unusedconstants->showUnusedConstants($unused);
-} else {
+}
+else
+{
     $unusedconstants->showFileSelectForm();
 }
 
 class Unusedconstants 
 {
-    
+    private $languages;
+
+    public function __construct()
+    {
+        $this->getInstalledLanguages();
+    }
+
+    private function getInstalledLanguages()
+    {
+        $this->languages = array();
+
+        $languages = JLanguageHelper::getKnownLanguages();
+
+        foreach ($languages as $lang)
+        {
+            $this->languages[] = (object) array(
+                'name' => $lang['name'],
+                'tag'  => $lang['tag']
+            );
+        }
+    }
+
     /**
      * Show a list of unused constants
      * @param array $unused a list of constants that are not in use
@@ -80,21 +122,35 @@ class Unusedconstants
                     <?php if (count($unused) == 0): ?>
                         <div class="alert alert-info">No unused constants were found in the file(s).</div>
                     <?php else: ?>
-                        <div class="alert alert-danger">The following constants appear to be unused. It is recommended that you check manually and create a backup before deleting any constants</div>
-                        <?php foreach ($unused as $file => $constants): ?>
-                            <div class="panel panel-warning">
+                        <div class="alert alert-danger">
+                            The following constants appear to be unused. It is recommended that you check manually and create a backup before deleting any constants
+                        </div>
+
+                        <?php foreach ($unused as $file => $constants) : ?>
+                            <?php $panelClass = (count($constants) > 0) ? 'warning' : 'success'; ?>
+                            <div class="panel panel-<?php echo $panelClass; ?>">
                                 <div class="panel-heading">
-                                  <h3 class="panel-title">(<?php echo count($constants); ?> constants) <?php echo $file; ?></h3>
+                                    <h3 class="panel-title">(<?php echo count($constants); ?> constants) <?php echo $file; ?></h3>
                                 </div>
                                 <div class="panel-body">
-                                    <ul>
-                                        <?php foreach ($constants as $constant => $text): ?>
-                                        <li><strong><?php echo $constant; ?></strong>: <small class="text-muted"><?php echo htmlentities($text); ?></small></li>
-                                        <?php endforeach; ?>
-                                    </ul>
+                                    <?php if (count($constants) == 0) : ?>
+                                        All the const strings in this file are used!
+                                    <?php else: ?>
+                                        <form action="<?php echo basename(__FILE__); ?>" method="post">
+                                            <input type="hidden" name="file" value="<?php echo $file; ?>">
+                                            <input type="hidden" name="task" value="remove">
+                                            <ul>
+                                                <?php foreach ($constants as $constant => $text): ?>
+                                                    <li><strong><?php echo $constant; ?></strong>: <small class="text-muted"><?php echo htmlentities($text); ?></small></li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                            <button type="submit" class="btn btn-danger">Remove all unused strings</button>
+                                        </form>
+                                    <?php endif; ?>
                                 </div>                                
                             </div>
                         <?php endforeach; ?>
+
                     <?php endif; ?>
                         
                 </div>
@@ -103,13 +159,36 @@ class Unusedconstants
         
         <?php
     }
-    
+
+    public function removeStringsFromFile($file)
+    {
+        $files       = array($file);
+        $strings     = $this->scanFiles($files);
+        $strToRemove = array_keys($strings[$file]);
+
+        $fileContent = $this->parse($file);
+
+        foreach ($strToRemove as $str)
+        {
+            unset($fileContent[$str]);
+        }
+
+        $str = '';
+
+        foreach ($fileContent as $key => $line)
+        {
+            $str .= $key . ' = "' . $line . '"\n';
+        }
+
+        file_put_contents($file, $str);
+    }
+
     /**
      * Scans a set of files
      * @param array $files
      * @return array with constants that appear to not be used, indexed by file.
      */
-    public function scanFiles($files) 
+    public function scanFiles($files)
     {
         //Load all of joomla into a gigantic array
         $data = $this->loadAllJoomlaFileIntoGiganticArray();
@@ -185,6 +264,18 @@ class Unusedconstants
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>        
         <?php
     }
+
+    private function getFiles()
+    {
+        $files = array();
+
+        foreach ($this->languages as $lang)
+        {
+            $files[$lang->tag] = JFolder::files(JPATH_BASE, $lang->tag . '.*\.ini', true, true);
+        }
+
+        return $files;
+    }
     
     
     public function showFileSelectForm($selected=array()) 
@@ -238,11 +329,8 @@ class Unusedconstants
                 </script>
             </head>
             <body>
-                <?php
-                //Find all language files
-                $files = JFolder::files(JPATH_BASE, 'en-GB.*\.ini', true, true);                
-                ?>
-                <?php if (count($files)): ?>
+                <?php $langFiles = $this->getFiles(); ?>
+                <?php if (count($langFiles)): ?>
                     <form action="<?php echo basename(__FILE__); ?>" method="post">
                         <div class="navbar navbar-inverse navbar-fixed-top">
                             <div class="container">
@@ -270,20 +358,48 @@ class Unusedconstants
                                 </div>
                             </div>                                        
 
-                            <div class="alert alert-danger hidden" id="warn-too-many">Warning! Selecting more than a few files can result in very long processing time and/or flat out timeouts and out of memory errors. Proceed with care!</div>
+                            <div class="alert alert-danger hidden" id="warn-too-many">
+                                Warning! Selecting more than a few files can result in very long processing time and/or flat out timeouts and out of memory errors. Proceed with care!
+                            </div>
+
                             <h4>Select the language file(s) to scan below</h4>
-                            <table class="table table-hover">
-                                <tbody>
-                                    <?php $i = 0; ?>
-                                    <?php foreach ($files as $file): ?>
-                                        <?php $i++; ?>
-                                        <tr><td>
-                                            <input type="checkbox" name="scanfiles[]" value="<?php echo urlencode($file); ?>" id="option<?php echo $i; ?>" /> 
-                                            <label for="option<?php echo $i; ?>"><?php echo $file;?></label>
-                                        </td></tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+
+                            <?php $i = 0; ?>
+                            <?php foreach ($langFiles as $lang => $files) : ?>
+
+                                <div class="panel-group" id="accordion<?php echo $lang; ?>" role="tablist" aria-multiselectable="true">
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading" role="tab" id="heading<?php echo $lang; ?>">
+                                            <h4 class="panel-title">
+                                                <a role="button" data-toggle="collapse" data-parent="#accordion<?php echo $lang; ?>" href="#collapse<?php echo $lang; ?>" aria-expanded="true" aria-controls="heading<?php echo $lang; ?>">
+                                                    <strong><?php echo $lang; ?></strong> <?php echo count($files); ?> file(s)
+                                                </a>
+                                            </h4>
+                                        </div>
+                                        <div id="collapse<?php echo $lang; ?>" class="panel-collapse collapse" role="tabpanel" aria-labelledby="heading<?php echo $lang; ?>">
+                                            <div class="panel-body">
+
+                                                <table class="table table-hover">
+                                                    <tbody>
+                                                    <?php foreach ($files as $file) : ?>
+                                                        <?php $i++; ?>
+                                                        <tr>
+                                                            <td>
+                                                                <input type="checkbox" name="scanfiles[]" value="<?php echo urlencode($file); ?>" id="option<?php echo $i; ?>">
+                                                                <label for="option<?php echo $i; ?>"><?php echo $file;?></label>
+                                                            </td>
+                                                        </tr>
+                                                    <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            <?php endforeach; ?>
+
                         </div>
                     </form>
                 <?php else: ?>
@@ -298,23 +414,23 @@ class Unusedconstants
 
     }
     
-    protected function loadAllJoomlaFileIntoGiganticArray() {
-        
+    protected function loadAllJoomlaFileIntoGiganticArray()
+    {
         $files = JFolder::files(JPATH_BASE, '.*\.(php|xml)', true, true);
+
         return $this->loadFilesIntoArray($files);
-        
     }
     
-    protected function loadFilesIntoArray($files) {
-        
+    protected function loadFilesIntoArray($files)
+    {
         $data = array();
+
         foreach ($files as $file) 
         {
             $data[$file] = file_get_contents($file);
         }
         
         return $data;
-        
     }
     
     
@@ -324,7 +440,6 @@ class Unusedconstants
 	 */
 	protected function loadLanguage($filename)
 	{
-
 		$strings = false;
 
 		if (file_exists($filename))
@@ -342,7 +457,6 @@ class Unusedconstants
 	 */
 	protected function parse($filename)
 	{
-
 		$contents = file_get_contents($filename);
 		$contents = str_replace('_QQ_', '"\""', $contents);
 		$strings = @parse_ini_string($contents);
@@ -353,7 +467,5 @@ class Unusedconstants
 		}
 
 		return $strings;
-	}    
-    
-    
+	}
 }
