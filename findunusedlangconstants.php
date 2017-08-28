@@ -31,8 +31,18 @@ require_once JPATH_BASE . '/libraries/joomla/language/language.php';
 $unusedconstants = new Unusedconstants;
 
 $scanfiles = filter_input(INPUT_POST, 'scanfiles', FILTER_SANITIZE_STRING, FILTER_REQUIRE_ARRAY);
+$task      = filter_input(INPUT_POST, 'task', FILTER_SANITIZE_STRING);
 
-if (count($scanfiles) > 0)
+if ($task == 'remove')
+{
+    $file = filter_input(INPUT_POST, 'file', FILTER_SANITIZE_STRING);
+
+    $unusedconstants->removeStringsFromFile($file);
+
+    $unused = $unusedconstants->scanFiles($scanfiles);
+    $unusedconstants->showUnusedConstants($unused);
+}
+elseif (count($scanfiles) > 0)
 {
     $unused = $unusedconstants->scanFiles($scanfiles);
     $unusedconstants->showUnusedConstants($unused);
@@ -105,21 +115,33 @@ class Unusedconstants
                     <?php if (count($unused) == 0): ?>
                         <div class="alert alert-info">No unused constants were found in the file(s).</div>
                     <?php else: ?>
-                        <div class="alert alert-danger">The following constants appear to be unused. It is recommended that you check manually and create a backup before deleting any constants</div>
-                        <?php foreach ($unused as $file => $constants): ?>
+                        <div class="alert alert-danger">
+                            The following constants appear to be unused. It is recommended that you check manually and create a backup before deleting any constants
+                        </div>
+
+                        <?php foreach ($unused as $file => $constants) : ?>
                             <div class="panel panel-warning">
                                 <div class="panel-heading">
-                                  <h3 class="panel-title">(<?php echo count($constants); ?> constants) <?php echo $file; ?></h3>
+                                    <h3 class="panel-title">(<?php echo count($constants); ?> constants) <?php echo $file; ?></h3>
                                 </div>
                                 <div class="panel-body">
-                                    <ul>
-                                        <?php foreach ($constants as $constant => $text): ?>
-                                        <li><strong><?php echo $constant; ?></strong>: <small class="text-muted"><?php echo htmlentities($text); ?></small></li>
-                                        <?php endforeach; ?>
-                                    </ul>
+                                    <form action="<?php echo basename(__FILE__); ?>" method="post">
+                                        <input type="hidden" name="file" value="<?php echo $file; ?>">
+                                        <input type="hidden" name="task" value="remove">
+
+                                        <ul>
+                                            <?php foreach ($constants as $constant => $text): ?>
+                                                <li><strong><?php echo $constant; ?></strong>: <small class="text-muted"><?php echo htmlentities($text); ?></small></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+
+                                        <button type="submit" class="btn btn-danger">Remove all unused strings</button>
+
+                                    </form>
                                 </div>                                
                             </div>
                         <?php endforeach; ?>
+
                     <?php endif; ?>
                         
                 </div>
@@ -128,13 +150,42 @@ class Unusedconstants
         
         <?php
     }
-    
+
+    public function removeStringsFromFile($file)
+    {
+        $files       = array($file);
+        $strings     = $this->scanFiles($files);
+        $strToRemove = array_keys($strings[$file]);
+
+        $fileContent = $this->parse($file);
+
+        echo 'initial len: ' . count($fileContent) . '<br>';
+
+        foreach ($strToRemove as $str)
+        {
+            unset($fileContent[$str]);
+        }
+
+        echo 'final len: ' . count($fileContent) . '<br>';
+
+        $str = '';
+
+        foreach ($fileContent as $key => $line)
+        {
+            $str .= $key . ' = "' . $line . '"\n';
+        }
+
+        file_put_contents($file, $str);
+
+
+    }
+
     /**
      * Scans a set of files
      * @param array $files
      * @return array with constants that appear to not be used, indexed by file.
      */
-    public function scanFiles($files) 
+    public function scanFiles($files)
     {
         //Load all of joomla into a gigantic array
         $data = $this->loadAllJoomlaFileIntoGiganticArray();
@@ -360,23 +411,23 @@ class Unusedconstants
 
     }
     
-    protected function loadAllJoomlaFileIntoGiganticArray() {
-        
+    protected function loadAllJoomlaFileIntoGiganticArray()
+    {
         $files = JFolder::files(JPATH_BASE, '.*\.(php|xml)', true, true);
+
         return $this->loadFilesIntoArray($files);
-        
     }
     
-    protected function loadFilesIntoArray($files) {
-        
+    protected function loadFilesIntoArray($files)
+    {
         $data = array();
+
         foreach ($files as $file) 
         {
             $data[$file] = file_get_contents($file);
         }
         
         return $data;
-        
     }
     
     
@@ -386,7 +437,6 @@ class Unusedconstants
 	 */
 	protected function loadLanguage($filename)
 	{
-
 		$strings = false;
 
 		if (file_exists($filename))
@@ -404,7 +454,6 @@ class Unusedconstants
 	 */
 	protected function parse($filename)
 	{
-
 		$contents = file_get_contents($filename);
 		$contents = str_replace('_QQ_', '"\""', $contents);
 		$strings = @parse_ini_string($contents);
@@ -415,7 +464,5 @@ class Unusedconstants
 		}
 
 		return $strings;
-	}    
-    
-    
+	}
 }
